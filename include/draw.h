@@ -5,6 +5,7 @@
 
 #include <SDL2/SDL.h>
 
-void draw_circle(SDL_Renderer* renderer, uint32_t center_x, uint32_t center_y, uint32_t radius);
+void draw_circle(SDL_Renderer *renderer, int32_t center_x, int32_t center_y,
+                 int32_t radius);
 
 #endif // _DRAW_H

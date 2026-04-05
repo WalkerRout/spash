@@ -43,7 +43,7 @@ fmt:
 
 lint:
 	clang-format --dry-run --Werror $(SRCS) $(HDRS)
-	clang-check --analyze $(SRCS) -- $(CCFLAGS)
+	clang-check --analyze --analyzer-output text $(SRCS) -- $(CCFLAGS)
 
 dump: $(BIN_DIR)/$(BIN)
 	llvm-objdump -D $<
