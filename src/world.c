@@ -9,7 +9,7 @@
 
 static struct particle step_particle(struct particle p,
                                      struct particle *neighbour_set,
-                                     size_t neighbour_set_len);
+                                     size_t neighbour_set_len, float dt);
 
 static float random_float(void);
 static struct particle random_particle(void);
@@ -44,7 +44,7 @@ static void swap_buffers(struct world *world) {
   world->particles_swap = temp;
 }
 
-void world_step(struct world *world) {
+void world_step(struct world *world, float dt) {
   assert(world);
   for (size_t i = 0; i < world->particles_len; ++i) {
     // struct particle *neighbours = spatial_hasher_find_neighbours(pi, world);
@@ -52,19 +52,20 @@ void world_step(struct world *world) {
     struct particle *neighbour_set = world->particles;
     size_t neighbour_set_len = world->particles_len;
     world->particles_swap[i] =
-        step_particle(p, neighbour_set, neighbour_set_len);
+        step_particle(p, neighbour_set, neighbour_set_len, dt);
   }
   swap_buffers(world);
 }
 
 static struct particle step_particle(struct particle p,
                                      struct particle *neighbour_set,
-                                     size_t neighbour_set_len) {
+                                     size_t neighbour_set_len, float dt) {
   assert(neighbour_set);
   struct particle out = p;
+
+  // particle-particle collisions
   for (size_t i = 0; i < neighbour_set_len; ++i) {
     struct particle *n = &neighbour_set[i];
-    // are we colliding with a different particle
     if (particle_is_colliding(p, *n)) {
       // simple velocity swap
       v2f_t temp = out.vel;
@@ -72,6 +73,28 @@ static struct particle step_particle(struct particle p,
       n->vel = temp;
     }
   }
+
+  // integrate position
+  out.pos = v2f_add(out.pos, v2f(out.vel.x * dt, out.vel.y * dt));
+
+  // wall bouncing
+  if (out.pos.x < 0.0f) {
+    out.pos.x = -out.pos.x;
+    out.vel.x = -out.vel.x;
+  }
+  if (out.pos.x > 1.0f) {
+    out.pos.x = 2.0f - out.pos.x;
+    out.vel.x = -out.vel.x;
+  }
+  if (out.pos.y < 0.0f) {
+    out.pos.y = -out.pos.y;
+    out.vel.y = -out.vel.y;
+  }
+  if (out.pos.y > 1.0f) {
+    out.pos.y = 2.0f - out.pos.y;
+    out.vel.y = -out.vel.y;
+  }
+
   return out;
 }
 

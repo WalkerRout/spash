@@ -18,6 +18,6 @@ struct world {
 
 void world_init(struct world *world, struct world_config cfg);
 void world_free(struct world *world);
-void world_step(struct world *world);
+void world_step(struct world *world, float dt);
 
 #endif // _WORLD_H

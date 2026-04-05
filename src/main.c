@@ -80,7 +80,7 @@ int main(int argc, char *argv[]) {
     }
 
     // tick
-    world_step(&world);
+    world_step(&world, 0.001f);
 
     // display world
     // bind framebuf, enter context drawing to hw accelerated texture
