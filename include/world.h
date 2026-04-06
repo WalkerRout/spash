@@ -14,8 +14,11 @@ struct world {
   struct particle *particles_swap; // writeonly
 };
 
-void world_init(struct world *world, size_t num_particles,
-                struct allocator *alloc);
+void world_init(
+  struct world *world,
+  size_t num_particles,
+  struct allocator *alloc
+);
 void world_free(struct world *world);
 void world_step(struct world *world, float dt);
 

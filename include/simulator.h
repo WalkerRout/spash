@@ -1,9 +1,8 @@
 #ifndef _SIMULATOR_H
 #define _SIMULATOR_H
 
-#include <stdint.h>
-
 #include <SDL2/SDL.h>
+#include <stdint.h>
 
 #include "alloc.h"
 #include "spatial_hasher.h"
@@ -31,8 +30,12 @@ struct simulator {
   uint8_t running;
 };
 
-void simulator_init(struct simulator *sim, struct simulator_config cfg,
-                    struct allocator alloc, struct allocator frame_alloc);
+void simulator_init(
+  struct simulator *sim,
+  struct simulator_config cfg,
+  struct allocator alloc,
+  struct allocator frame_alloc
+);
 void simulator_free(struct simulator *sim);
 void simulator_tick(struct simulator *sim, float dt);
 void simulator_draw(struct simulator *sim);

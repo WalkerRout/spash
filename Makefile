@@ -14,6 +14,7 @@ WARNINGS = -Wall -Wextra -Wpedantic -Werror -Wformat=2 -Wconversion -Wimplicit-f
 CCFLAGS = $(PKG_CCFLAGS) -O3 -march=native -Iinclude/ $(WARNINGS) -fno-builtin-memcpy 
 LDFLAGS = $(PKG_LDFLAGS)
 
+HDRS = $(wildcard include/*.h)
 SRCS = $(wildcard src/*.c)
 ASMS = $(wildcard src/*.S)
 OBJS = $(patsubst src/%.c,$(OBJS_DIR)/%.o,$(SRCS)) $(patsubst src/%.S,$(OBJS_DIR)/%.o,$(ASMS))

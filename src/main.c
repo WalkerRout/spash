@@ -23,7 +23,8 @@ void delta_time_init(struct delta_time *dt) {
 double delta_time_fetch(struct delta_time *dt) {
   dt->prev = dt->curr;
   dt->curr = SDL_GetPerformanceCounter();
-  double delta = (double)(dt->curr - dt->prev)*1000.0 / (double)SDL_GetPerformanceFrequency();
+  double delta = (double)(dt->curr - dt->prev) * 1000.0
+    / (double)SDL_GetPerformanceFrequency();
   return delta;
 }
 
@@ -61,7 +62,7 @@ int main(int argc, char *argv[]) {
       }
     }
     double delta = delta_time_fetch(&dt);
-    simulator_tick(&sim, (float)delta/3000.0f);
+    simulator_tick(&sim, (float)delta / 3000.0f);
     simulator_draw(&sim);
   }
 

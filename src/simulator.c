@@ -66,8 +66,8 @@ void simulator_tick(struct simulator *sim, float dt) {
 }
 
 static void blit_particle(
-  struct particle particle,
   SDL_Renderer *renderer,
+  struct particle particle,
   int32_t win_w,
   int32_t win_h
 ) {
@@ -85,13 +85,13 @@ static void blit_particle(
 }
 
 static void blit_world(
-  struct world *world,
   SDL_Renderer *renderer,
+  struct world *world,
   int32_t win_w,
   int32_t win_h
 ) {
   for (size_t i = 0; i < world->particles_len; ++i) {
-    blit_particle(world->particles[i], renderer, win_w, win_h);
+    blit_particle(renderer, world->particles[i], win_w, win_h);
   }
 }
 
@@ -101,7 +101,7 @@ void simulator_draw(struct simulator *sim) {
   SDL_SetRenderTarget(sim->renderer, sim->framebuf);
   SDL_SetRenderDrawColor(sim->renderer, 0, 0, 0, 255);
   SDL_RenderClear(sim->renderer);
-  blit_world(&sim->world, sim->renderer, sim->win_w, sim->win_h);
+  blit_world(sim->renderer, &sim->world, sim->win_w, sim->win_h);
   // unbind framebuf, defaults back to window
   SDL_SetRenderTarget(sim->renderer, NULL);
   SDL_RenderCopy(sim->renderer, sim->framebuf, NULL, NULL);
