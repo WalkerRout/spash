@@ -37,7 +37,6 @@ int main(int argc, char *argv[]) {
   assert(SDL_Init(SDL_INIT_VIDEO) == 0);
 
   struct allocator alloc = allocator_heap();
-  struct allocator frame_alloc = allocator_heap();
 
   struct simulator sim;
   simulator_init(
@@ -47,8 +46,7 @@ int main(int argc, char *argv[]) {
       .window_height = 1500,
       .num_particles = 5000,
     },
-    alloc,
-    frame_alloc
+    alloc
   );
 
   struct delta_time dt;

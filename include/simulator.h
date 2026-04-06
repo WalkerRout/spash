@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 #include "alloc.h"
+#include "arena.h"
 #include "spatial_hasher.h"
 #include "world.h"
 
@@ -16,7 +17,7 @@ struct simulator_config {
 
 struct simulator {
   struct allocator alloc;
-  struct allocator frame_alloc;
+  struct arena arena;
 
   SDL_Window *window;
   SDL_Renderer *renderer;
@@ -24,8 +25,8 @@ struct simulator {
   int32_t win_w;
   int32_t win_h;
 
+  struct spashable intface;
   struct world world;
-  struct spatial_hasher sh;
 
   uint8_t running;
 };
@@ -33,8 +34,7 @@ struct simulator {
 void simulator_init(
   struct simulator *sim,
   struct simulator_config cfg,
-  struct allocator alloc,
-  struct allocator frame_alloc
+  struct allocator alloc
 );
 void simulator_free(struct simulator *sim);
 void simulator_tick(struct simulator *sim, float dt);

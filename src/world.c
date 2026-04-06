@@ -55,22 +55,19 @@ void world_free(struct world *world) {
 
 static struct particle step_particle(
   struct particle p,
-  struct particle *neighbour_set,
-  size_t neighbour_set_len,
+  const void **neighbours,
+  size_t neighbours_len,
   float dt
 ) {
-  assert(neighbour_set);
   struct particle out = p;
 
   // particle-particle collisions
-  for (size_t i = 0; i < neighbour_set_len; ++i) {
-    struct particle *n = &neighbour_set[i];
+  for (size_t i = 0; i < neighbours_len; ++i) {
+    const struct particle *n = (const struct particle *)neighbours[i];
     // are we colliding with a different particle
     if (particle_is_colliding(p, *n)) {
       // simple velocity swap
-      v2f_t temp = out.vel;
       out.vel = n->vel;
-      n->vel = temp;
     }
   }
 
@@ -105,14 +102,16 @@ static void swap_buffers(struct world *world) {
   world->particles_swap = temp;
 }
 
-void world_step(struct world *world, float dt) {
+void world_step(struct world *world, struct spatial_hasher *sh, float dt) {
   assert(world);
+  assert(sh);
   for (size_t i = 0; i < world->particles_len; ++i) {
     struct particle p = world->particles[i];
-    struct particle *neighbour_set = world->particles;
-    size_t neighbour_set_len = world->particles_len;
-    world->particles_swap[i] =
-      step_particle(p, neighbour_set, neighbour_set_len, dt);
+
+    size_t neighbours_len = 0;
+    const void **neighbours = spatial_hasher_query(sh, &p, &neighbours_len);
+
+    world->particles_swap[i] = step_particle(p, neighbours, neighbours_len, dt);
   }
   swap_buffers(world);
 }

@@ -7,17 +7,26 @@
 #include "draw.h"
 #include "particle.h"
 
+static v2f_t particle_position(const void *item) {
+  const struct particle *p = (const struct particle *)item;
+  return p->pos;
+}
+
 void simulator_init(
   struct simulator *sim,
   struct simulator_config cfg,
-  struct allocator alloc,
-  struct allocator frame_alloc
+  struct allocator alloc
 ) {
   assert(sim);
 
   sim->alloc = alloc;
-  sim->frame_alloc = frame_alloc;
+  arena_init(&sim->arena);
   sim->running = 1;
+
+  sim->intface = (struct spashable) {
+    .sizeof_item = sizeof(struct particle),
+    .position = particle_position,
+  };
 
   sim->window = SDL_CreateWindow(
     "spatial hashing",
@@ -53,6 +62,7 @@ void simulator_init(
 void simulator_free(struct simulator *sim) {
   assert(sim);
   world_free(&sim->world);
+  arena_free(&sim->arena);
   SDL_DestroyTexture(sim->framebuf);
   SDL_DestroyRenderer(sim->renderer);
   SDL_DestroyWindow(sim->window);
@@ -60,9 +70,17 @@ void simulator_free(struct simulator *sim) {
 
 void simulator_tick(struct simulator *sim, float dt) {
   assert(sim);
-  // todo populate buckets
-  world_step(&sim->world, dt);
-  // todo clear frame allocator/equiv
+  struct spatial_hasher sh;
+  spatial_hasher_init(
+    &sh,
+    &sim->arena,
+    0.014f,
+    sim->intface,
+    sim->world.particles,
+    sim->world.particles_len
+  );
+  world_step(&sim->world, &sh, dt);
+  arena_clear(&sim->arena);
 }
 
 static void blit_particle(
