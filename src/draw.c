@@ -1,7 +1,11 @@
 #include "draw.h"
 
-void draw_circle(SDL_Renderer *renderer, int32_t cx, int32_t cy,
-                 int32_t radius) {
+void draw_circle(
+  SDL_Renderer *renderer,
+  int32_t cx,
+  int32_t cy,
+  int32_t radius
+) {
   int32_t x = radius;
   int32_t y = 0;
   int32_t err = 1 - radius;

@@ -1,10 +1,10 @@
+#include "particle.h"
+
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
 
 #include "mvla/mvla.h"
-
-#include "particle.h"
 
 // abbreviation for compound literal syntax
 struct particle particle_new(float radius, v2f_t pos, v2f_t vel) {
@@ -13,7 +13,7 @@ struct particle particle_new(float radius, v2f_t pos, v2f_t vel) {
   assert(pos.y >= 0.0 && pos.y <= 1.0);
   assert(vel.x >= 0.0 && vel.x <= 1.0);
   assert(vel.y >= 0.0 && vel.y <= 1.0);
-  return (struct particle){.radius = radius, .pos = pos, .vel = vel};
+  return (struct particle) {.radius = radius, .pos = pos, .vel = vel};
 }
 
 uint8_t particle_is_colliding(struct particle a, struct particle b) {

@@ -7,35 +7,25 @@
 #define SDL_MAIN_HANDLED
 #include <SDL2/SDL.h>
 
-#include "draw.h"
-#include "world.h"
+#include "alloc.h"
+#include "simulator.h"
 
-#define WIDTH 1280
-#define HEIGHT 720
+struct delta_time {
+  uint64_t curr;
+  uint64_t prev;
+};
 
-static void blit_particle(struct particle particle, SDL_Renderer *renderer,
-                          int32_t win_w, int32_t win_h) {
-  int32_t min_dim = win_w;
-  if (win_h < min_dim) {
-    min_dim = win_h;
-  }
-  // normalize particle values to world space...
-  int32_t radius = (int32_t)(particle.radius * (float)min_dim);
-  int32_t px = (int32_t)(particle.pos.x * (float)win_w);
-  int32_t py = (int32_t)(particle.pos.y * (float)win_h);
-
-  SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-  draw_circle(renderer, px, py, radius);
+void delta_time_init(struct delta_time *dt) {
+  dt->prev = 0;
+  dt->curr = SDL_GetPerformanceCounter();
 }
 
-static void blit_world(struct world *world, SDL_Renderer *renderer,
-                       int32_t win_w, int32_t win_h) {
-  for (size_t i = 0; i < world->particles_len; ++i) {
-    blit_particle(world->particles[i], renderer, win_w, win_h);
-  }
+double delta_time_fetch(struct delta_time *dt) {
+  dt->prev = dt->curr;
+  dt->curr = SDL_GetPerformanceCounter();
+  double delta = (double)(dt->curr - dt->prev)*1000.0 / (double)SDL_GetPerformanceFrequency();
+  return delta;
 }
-
-enum state { HALTED = 0, RUNNING = 1 };
 
 int main(int argc, char *argv[]) {
   (void)argc;
@@ -43,62 +33,39 @@ int main(int argc, char *argv[]) {
 
   srand((unsigned int)time(NULL));
 
-  if (SDL_Init(SDL_INIT_VIDEO) != 0) {
-    return -1;
-  }
+  assert(SDL_Init(SDL_INIT_VIDEO) == 0);
 
-  SDL_Window *window = SDL_CreateWindow(
-      "spatial hashing", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-      WIDTH, HEIGHT, SDL_WINDOW_SHOWN);
-  assert(window);
+  struct allocator alloc = allocator_heap();
+  struct allocator frame_alloc = allocator_heap();
 
-  SDL_Renderer *renderer = SDL_CreateRenderer(
-      window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-  assert(renderer);
+  struct simulator sim;
+  simulator_init(
+    &sim,
+    (struct simulator_config) {
+      .window_width = 2000,
+      .window_height = 1500,
+      .num_particles = 5000,
+    },
+    alloc,
+    frame_alloc
+  );
 
-  int32_t win_w = 0;
-  int32_t win_h = 0;
-  SDL_GetRendererOutputSize(renderer, &win_w, &win_h);
+  struct delta_time dt;
+  delta_time_init(&dt);
 
-  SDL_Texture *framebuf =
-      SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888,
-                        SDL_TEXTUREACCESS_TARGET, win_w, win_h);
-  assert(framebuf);
-
-  struct world world;
-  world_init(&world, (struct world_config){.num_particles = 1000});
-
-  enum state state = RUNNING;
   SDL_Event event = {0};
-  while (state == RUNNING) {
+  while (sim.running) {
     while (SDL_PollEvent(&event)) {
-      switch (event.type) {
-      case SDL_QUIT:
-        state = HALTED;
-        break;
+      if (event.type == SDL_QUIT) {
+        sim.running = 0;
       }
     }
-
-    // tick
-    world_step(&world, 0.001f);
-
-    // display world
-    // bind framebuf, enter context drawing to hw accelerated texture
-    SDL_SetRenderTarget(renderer, framebuf);
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-    SDL_RenderClear(renderer);
-    blit_world(&world, renderer, win_w, win_h);
-    // unbind framebuf, defaults back to window
-    SDL_SetRenderTarget(renderer, NULL);
-    SDL_RenderCopy(renderer, framebuf, NULL, NULL);
-    SDL_RenderPresent(renderer);
+    double delta = delta_time_fetch(&dt);
+    simulator_tick(&sim, (float)delta/3000.0f);
+    simulator_draw(&sim);
   }
 
-  world_free(&world);
-
-  SDL_DestroyTexture(framebuf);
-  SDL_DestroyRenderer(renderer);
-  SDL_DestroyWindow(window);
+  simulator_free(&sim);
   SDL_Quit();
 
   return 0;
