@@ -6,6 +6,7 @@
 #include "alloc.h"
 #include "particle.h"
 #include "spatial_hasher.h"
+#include "thread_pool.h"
 
 struct world {
   struct allocator *alloc;
@@ -21,6 +22,11 @@ void world_init(
   struct allocator *alloc
 );
 void world_free(struct world *world);
-void world_step(struct world *world, struct spatial_hasher *sh, float dt);
+void world_step(
+  struct world *world,
+  struct spatial_hasher *sh,
+  struct thread_pool *pool,
+  float dt
+);
 
 #endif // _WORLD_H

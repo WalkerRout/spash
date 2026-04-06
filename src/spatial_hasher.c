@@ -48,6 +48,7 @@ void spatial_hasher_init(
   // insert all items
   const char *base = (const char *)items;
   for (size_t i = 0; i < items_len; ++i) {
+    // dead recon the item position
     const void *item = base + i * intface.sizeof_item;
     uint64_t idx = bucket_index(sh, item);
 

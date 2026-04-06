@@ -28,6 +28,15 @@ double delta_time_fetch(struct delta_time *dt) {
   return delta;
 }
 
+void delta_time_target_fps(struct delta_time *dt, uint32_t fps) {
+  double target_ms = 1000.0 / (double)fps;
+  double elapsed_ms = (double)(SDL_GetPerformanceCounter() - dt->curr) * 1000.0
+    / (double)SDL_GetPerformanceFrequency();
+  if (elapsed_ms < target_ms) {
+    SDL_Delay((uint32_t)(target_ms - elapsed_ms));
+  }
+}
+
 int main(int argc, char *argv[]) {
   (void)argc;
   (void)argv;
@@ -42,9 +51,9 @@ int main(int argc, char *argv[]) {
   simulator_init(
     &sim,
     (struct simulator_config) {
-      .window_width = 2000,
-      .window_height = 1500,
-      .num_particles = 5000,
+      .window_width = 1500,
+      .window_height = 1000,
+      .num_particles = 20000,
     },
     alloc
   );
@@ -59,9 +68,11 @@ int main(int argc, char *argv[]) {
         sim.running = 0;
       }
     }
-    double delta = delta_time_fetch(&dt);
-    simulator_tick(&sim, (float)delta / 3000.0f);
+    double delta_ms = delta_time_fetch(&dt);
+    float delta_s = (float)(delta_ms / 1000.0);
+    simulator_tick(&sim, delta_s);
     simulator_draw(&sim);
+    //delta_time_target_fps(&dt, 60);
   }
 
   simulator_free(&sim);

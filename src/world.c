@@ -1,8 +1,10 @@
 #include "world.h"
 
 #include <assert.h>
+#include <math.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "mvla/mvla.h"
 #include "particle.h"
@@ -13,7 +15,7 @@ static float random_float_0_to_1(void) {
 
 static struct particle random_particle(void) {
   struct particle p;
-  p.radius = 0.007f;
+  p.radius = 0.002f;
   p.pos = v2f(random_float_0_to_1(), random_float_0_to_1());
   p.vel = v2f(random_float_0_to_1(), random_float_0_to_1());
   return p;
@@ -64,10 +66,26 @@ static struct particle step_particle(
   // particle-particle collisions
   for (size_t i = 0; i < neighbours_len; ++i) {
     const struct particle *n = (const struct particle *)neighbours[i];
+    // skip self
+    if (memcmp(n, &p, sizeof(struct particle)) == 0) {
+      continue;
+    }
     // are we colliding with a different particle
     if (particle_is_colliding(p, *n)) {
-      // simple velocity swap
-      out.vel = n->vel;
+      // reflect velocity along collision normal
+      float dx = p.pos.x - n->pos.x;
+      float dy = p.pos.y - n->pos.y;
+      float dist = dx * dx + dy * dy;
+      if (dist > 0.0f) {
+        dist = sqrtf(dist);
+        float nx = dx / dist;
+        float ny = dy / dist;
+        float dot = out.vel.x * nx + out.vel.y * ny;
+        if (dot < 0.0f) {
+          out.vel.x -= 2.0f * dot * nx;
+          out.vel.y -= 2.0f * dot * ny;
+        }
+      }
     }
   }
 
@@ -102,16 +120,82 @@ static void swap_buffers(struct world *world) {
   world->particles_swap = temp;
 }
 
-void world_step(struct world *world, struct spatial_hasher *sh, float dt) {
-  assert(world);
-  assert(sh);
-  for (size_t i = 0; i < world->particles_len; ++i) {
-    struct particle p = world->particles[i];
+/*
+#define THREAD_COUNT 4
+
+struct particle_chunk_task {
+  struct particle *buffer; // READ ONLY
+  struct particle *swap; // WRITE ONLY
+  size_t start;
+  size_t end;
+  struct spatial_hasher *sh;
+  float dt;
+};
+
+static void chunk_particle_update(void *arg) {
+  assert(arg);
+  struct particle_chunk_task *task = (struct particle_chunk_task *)arg;
+  for (size_t i = task->start; i < task->end; ++i) {
+    struct particle p = task->buffer[i];
 
     size_t neighbours_len = 0;
-    const void **neighbours = spatial_hasher_query(sh, &p, &neighbours_len);
+    const void **neighbours =
+      spatial_hasher_query(task->sh, &p, &neighbours_len);
 
+    task->swap[i] = step_particle(p, neighbours, neighbours_len, task->dt);
+  }
+}
+*/
+
+void world_step(
+  struct world *world,
+  struct spatial_hasher *sh,
+  struct thread_pool *pool,
+  float dt
+) {
+  assert(world);
+  assert(sh);
+  (void)pool;
+
+  // todo threading disabled until arena is threadsafe
+  for (size_t i = 0; i < world->particles_len; ++i) {
+    struct particle p = world->particles[i];
+    size_t neighbours_len = 0;
+    const void **neighbours = spatial_hasher_query(sh, &p, &neighbours_len);
     world->particles_swap[i] = step_particle(p, neighbours, neighbours_len, dt);
   }
   swap_buffers(world);
 }
+
+/*
+  // todo fix
+  assert(pool);
+
+  size_t chunk_size = world->particles_len / THREAD_COUNT;
+  size_t slack = world->particles_len % THREAD_COUNT;
+  struct particle_chunk_task tasks[THREAD_COUNT];
+
+  size_t curr = 0;
+  for (size_t i = 0; i < THREAD_COUNT; ++i) {
+    size_t start = curr;
+    size_t end = start + chunk_size;
+    if (i < slack) {
+      end += 1;
+    }
+
+    tasks[i] = (struct particle_chunk_task){
+      .buffer = world->particles,
+      .swap = world->particles_swap,
+      .start = start,
+      .end = end,
+      .sh = sh,
+      .dt = dt,
+    };
+
+    tpool_add_work(pool, chunk_particle_update, &tasks[i]);
+    curr = end;
+  }
+
+  tpool_wait(pool);
+  swap_buffers(world);
+*/

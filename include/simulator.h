@@ -7,6 +7,7 @@
 #include "alloc.h"
 #include "arena.h"
 #include "spatial_hasher.h"
+#include "thread_pool.h"
 #include "world.h"
 
 struct simulator_config {
@@ -25,6 +26,7 @@ struct simulator {
   int32_t win_w;
   int32_t win_h;
 
+  struct thread_pool *pool;
   struct spashable intface;
   struct world world;
 

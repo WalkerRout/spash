@@ -56,12 +56,14 @@ void simulator_init(
   );
   assert(sim->framebuf);
 
+  sim->pool = tpool_new(4);
   world_init(&sim->world, cfg.num_particles, &sim->alloc);
 }
 
 void simulator_free(struct simulator *sim) {
   assert(sim);
   world_free(&sim->world);
+  tpool_free(sim->pool);
   arena_free(&sim->arena);
   SDL_DestroyTexture(sim->framebuf);
   SDL_DestroyRenderer(sim->renderer);
@@ -79,7 +81,7 @@ void simulator_tick(struct simulator *sim, float dt) {
     sim->world.particles,
     sim->world.particles_len
   );
-  world_step(&sim->world, &sh, dt);
+  world_step(&sim->world, &sh, sim->pool, dt);
   arena_clear(&sim->arena);
 }
 
