@@ -7,8 +7,8 @@ OBJS_DIR = .objs
 BIN_DIR = bin
 
 VCPKG_DIR ?= C:/Users/walke/workspace/cpp-workspace/outside/vcpkg
-PKG_CCFLAGS += -I$(VCPKG_DIR)/installed/x64-windows/include
-PKG_LDFLAGS += -L$(VCPKG_DIR)/installed/x64-windows/lib -lSDL2
+PKG_CCFLAGS += -I$(VCPKG_DIR)/installed/x64-windows-static/include
+PKG_LDFLAGS += -L$(VCPKG_DIR)/installed/x64-windows-static/lib -lSDL2-static -lSDL2_ttf -lfreetype -lbrotlidec -lbrotlicommon -lbz2 -llibpng16 -lzlib -lwinmm -limm32 -lversion -lsetupapi -lole32 -loleaut32 -lshell32 -lgdi32 -luser32 -ladvapi32 -lcfgmgr32
 
 WARNINGS = -Wall -Wextra -Wpedantic -Werror -Wformat=2 -Wconversion -Wimplicit-fallthrough
 CCFLAGS = $(PKG_CCFLAGS) -O3 -march=native -Iinclude/ $(WARNINGS) -fno-builtin-memcpy 
@@ -44,7 +44,7 @@ fmt:
 
 lint:
 	clang-format --dry-run --Werror $(SRCS) $(HDRS)
-	clang-check --analyze --analyzer-output text $(SRCS) -- $(CCFLAGS)
+	clang-check --analyze --extra-arg=-Xanalyzer --extra-arg=-analyzer-output=text $(SRCS) -- $(CCFLAGS)
 
 dump: $(BIN_DIR)/$(BIN)
 	llvm-objdump -D $<

@@ -2,11 +2,10 @@
 #define _SIMULATOR_H
 
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
 #include <stdint.h>
 
-#include "alloc.h"
 #include "arena.h"
-#include "spatial_hasher.h"
 #include "thread_pool.h"
 #include "world.h"
 
@@ -16,30 +15,29 @@ struct simulator_config {
   size_t num_particles;
 };
 
+enum simulator_state { SIMULATOR_STATE_STOPPED = 0, SIMULATOR_STATE_RUNNING };
+
 struct simulator {
-  struct allocator alloc;
+  enum simulator_state state;
+
+  // per tick contexts/monads
   struct arena arena;
+  struct thread_pool pool;
 
   SDL_Window *window;
   SDL_Renderer *renderer;
   SDL_Texture *framebuf;
+  TTF_Font *font;
   int32_t win_w;
   int32_t win_h;
 
-  struct thread_pool *pool;
-  struct spashable intface;
+  // particle simulation world
   struct world world;
-
-  uint8_t running;
 };
 
-void simulator_init(
-  struct simulator *sim,
-  struct simulator_config cfg,
-  struct allocator alloc
-);
+void simulator_init(struct simulator *sim, struct simulator_config cfg);
 void simulator_free(struct simulator *sim);
 void simulator_tick(struct simulator *sim, float dt);
-void simulator_draw(struct simulator *sim);
+void simulator_draw(struct simulator *sim, uint32_t fps);
 
 #endif // _SIMULATOR_H

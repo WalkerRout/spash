@@ -3,31 +3,24 @@
 #include <SDL2/SDL.h>
 #include <assert.h>
 #include <stdint.h>
+#include <stdio.h>
 
-#include "draw.h"
 #include "particle.h"
 
-static v2f_t particle_position(const void *item) {
-  const struct particle *p = (const struct particle *)item;
-  return p->pos;
-}
-
-void simulator_init(
-  struct simulator *sim,
-  struct simulator_config cfg,
-  struct allocator alloc
-) {
+void simulator_init(struct simulator *sim, struct simulator_config cfg) {
   assert(sim);
 
-  sim->alloc = alloc;
+  // mark simulator as live
+  sim->state = SIMULATOR_STATE_RUNNING;
+  // init contexts
   arena_init(&sim->arena);
-  sim->running = 1;
+  thread_pool_init(&sim->pool, WORLD_THREAD_COUNT);
+  // init sim world
+  world_init(&sim->world, cfg.num_particles);
 
-  sim->intface = (struct spashable) {
-    .sizeof_item = sizeof(struct particle),
-    .position = particle_position,
-  };
+  // init all sdlslop
 
+  // assuming SDL_Init was called...
   sim->window = SDL_CreateWindow(
     "spatial hashing",
     SDL_WINDOWPOS_UNDEFINED,
@@ -56,15 +49,18 @@ void simulator_init(
   );
   assert(sim->framebuf);
 
-  sim->pool = tpool_new(4);
-  world_init(&sim->world, cfg.num_particles, &sim->alloc);
+  // assuming TTF_Init was called...
+  sim->font = TTF_OpenFont("C:/Windows/Fonts/consola.ttf", 16);
+  assert(sim->font);
 }
 
 void simulator_free(struct simulator *sim) {
   assert(sim);
   world_free(&sim->world);
-  tpool_free(sim->pool);
+  thread_pool_free(&sim->pool);
   arena_free(&sim->arena);
+  TTF_CloseFont(sim->font);
+  TTF_Quit();
   SDL_DestroyTexture(sim->framebuf);
   SDL_DestroyRenderer(sim->renderer);
   SDL_DestroyWindow(sim->window);
@@ -72,17 +68,30 @@ void simulator_free(struct simulator *sim) {
 
 void simulator_tick(struct simulator *sim, float dt) {
   assert(sim);
-  struct spatial_hasher sh;
-  spatial_hasher_init(
-    &sh,
-    &sim->arena,
-    0.014f,
-    sim->intface,
-    sim->world.particles,
-    sim->world.particles_len
-  );
-  world_step(&sim->world, &sh, sim->pool, dt);
+  world_step(&sim->world, &sim->arena, &sim->pool, dt);
   arena_clear(&sim->arena);
+}
+
+static void
+draw_circle(SDL_Renderer *renderer, int32_t cx, int32_t cy, int32_t radius) {
+  int32_t x = radius;
+  int32_t y = 0;
+  int32_t err = 1 - radius;
+
+  while (x >= y) {
+    (void)SDL_RenderDrawLine(renderer, cx - x, cy + y, cx + x, cy + y);
+    (void)SDL_RenderDrawLine(renderer, cx - x, cy - y, cx + x, cy - y);
+    (void)SDL_RenderDrawLine(renderer, cx - y, cy + x, cx + y, cy + x);
+    (void)SDL_RenderDrawLine(renderer, cx - y, cy - x, cx + y, cy - x);
+
+    ++y;
+    if (err < 0) {
+      err += 2 * y + 1;
+    } else {
+      --x;
+      err += 2 * (y - x) + 1;
+    }
+  }
 }
 
 static void blit_particle(
@@ -115,13 +124,28 @@ static void blit_world(
   }
 }
 
-void simulator_draw(struct simulator *sim) {
+static void blit_fps(SDL_Renderer *renderer, TTF_Font *font, uint32_t fps) {
+  char buf[32];
+  (void)snprintf(buf, sizeof(buf), "fps: %u", fps);
+  SDL_Color white = {255, 255, 255, 255};
+  SDL_Surface *surface = TTF_RenderText_Blended(font, buf, white);
+  assert(surface);
+  SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
+  SDL_Rect dst = {10, 10, surface->w, surface->h};
+  SDL_FreeSurface(surface);
+  assert(texture);
+  SDL_RenderCopy(renderer, texture, NULL, &dst);
+  SDL_DestroyTexture(texture);
+}
+
+void simulator_draw(struct simulator *sim, uint32_t fps) {
   assert(sim);
   // bind framebuf, enter context drawing to hw accelerated texture
   SDL_SetRenderTarget(sim->renderer, sim->framebuf);
   SDL_SetRenderDrawColor(sim->renderer, 0, 0, 0, 255);
   SDL_RenderClear(sim->renderer);
   blit_world(sim->renderer, &sim->world, sim->win_w, sim->win_h);
+  blit_fps(sim->renderer, sim->font, fps);
   // unbind framebuf, defaults back to window
   SDL_SetRenderTarget(sim->renderer, NULL);
   SDL_RenderCopy(sim->renderer, sim->framebuf, NULL, NULL);

@@ -3,28 +3,26 @@
 
 #include <stddef.h>
 
-#include "alloc.h"
+#include "arena.h"
 #include "particle.h"
-#include "spatial_hasher.h"
 #include "thread_pool.h"
 
+#define WORLD_THREAD_COUNT (20)
+
 struct world {
-  struct allocator *alloc;
   // swap buffers; see WalkerRout/boids...
   size_t particles_len;
   struct particle *particles; // readonly
   struct particle *particles_swap; // writeonly
+
+  struct arena thread_arenas[WORLD_THREAD_COUNT];
 };
 
-void world_init(
-  struct world *world,
-  size_t num_particles,
-  struct allocator *alloc
-);
+void world_init(struct world *world, size_t num_particles);
 void world_free(struct world *world);
 void world_step(
   struct world *world,
-  struct spatial_hasher *sh,
+  struct arena *arena,
   struct thread_pool *pool,
   float dt
 );

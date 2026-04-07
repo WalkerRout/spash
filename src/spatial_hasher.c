@@ -29,7 +29,6 @@ void spatial_hasher_init(
 
   sh->cell_size = cell_size;
   sh->intface = intface;
-  sh->arena = arena;
 
   // 2x load factor
   sh->num_buckets = items_len * 2;
@@ -62,10 +61,12 @@ void spatial_hasher_init(
 
 const void **spatial_hasher_query(
   const struct spatial_hasher *sh,
+  struct arena *arena,
   const void *item,
   size_t *out_neighbours_len
 ) {
   assert(sh);
+  assert(arena);
   assert(item);
   assert(out_neighbours_len);
 
@@ -75,8 +76,8 @@ const void **spatial_hasher_query(
 
   // collect from 3x3 neighborhood
   size_t count = 0;
-  size_t capacity = 16;
-  const void **result = arena_alloc(sh->arena, capacity * sizeof(const void *));
+  size_t capacity = 32;
+  const void **result = arena_alloc(arena, capacity * sizeof(const void *));
 
   for (int32_t dx = -1; dx <= 1; ++dx) {
     for (int32_t dy = -1; dy <= 1; ++dy) {
@@ -95,7 +96,7 @@ const void **spatial_hasher_query(
           if (count >= capacity) {
             size_t new_capacity = capacity * 2;
             const void **new_result =
-              arena_alloc(sh->arena, new_capacity * sizeof(const void *));
+              arena_alloc(arena, new_capacity * sizeof(const void *));
             memcpy(new_result, result, count * sizeof(const void *));
             result = new_result;
             capacity = new_capacity;

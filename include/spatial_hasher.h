@@ -20,13 +20,11 @@ struct spatial_hasher_entry {
 struct spatial_hasher {
   float cell_size;
   struct spashable intface;
-  struct arena *arena;
 
   size_t num_buckets;
   struct spatial_hasher_entry **buckets;
 };
 
-// populates sh, arena-allocates buckets, inserts all items
 void spatial_hasher_init(
   struct spatial_hasher *sh,
   struct arena *arena,
@@ -36,9 +34,9 @@ void spatial_hasher_init(
   size_t items_len
 );
 
-// returns arena-allocated array of pointers to nearby items
 const void **spatial_hasher_query(
   const struct spatial_hasher *sh,
+  struct arena *arena,
   const void *item,
   size_t *out_neighbours_len
 );
