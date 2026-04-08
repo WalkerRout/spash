@@ -4,7 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "arena.h"
+#include "bump_allocator.h"
 #include "mvla/mvla.h"
 
 struct spashable {
@@ -27,7 +27,7 @@ struct spatial_hasher {
 
 void spatial_hasher_init(
   struct spatial_hasher *sh,
-  struct arena *arena,
+  struct bump_allocator *bump,
   float cell_size,
   struct spashable intface,
   const void *items,
@@ -36,7 +36,7 @@ void spatial_hasher_init(
 
 const void **spatial_hasher_query(
   const struct spatial_hasher *sh,
-  struct arena *arena,
+  struct bump_allocator *bump,
   const void *item,
   size_t *out_neighbours_len
 );

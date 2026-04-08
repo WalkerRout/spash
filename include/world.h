@@ -3,7 +3,7 @@
 
 #include <stddef.h>
 
-#include "arena.h"
+#include "bump_allocator.h"
 #include "particle.h"
 #include "thread_pool.h"
 
@@ -15,14 +15,14 @@ struct world {
   struct particle *particles; // readonly
   struct particle *particles_swap; // writeonly
 
-  struct arena thread_arenas[WORLD_THREAD_COUNT];
+  struct bump_allocator thread_bumps[WORLD_THREAD_COUNT];
 };
 
 void world_init(struct world *world, size_t num_particles);
 void world_free(struct world *world);
 void world_step(
   struct world *world,
-  struct arena *arena,
+  struct bump_allocator *bump,
   struct thread_pool *pool,
   float dt
 );

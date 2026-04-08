@@ -13,7 +13,7 @@ void simulator_init(struct simulator *sim, struct simulator_config cfg) {
   // mark simulator as live
   sim->state = SIMULATOR_STATE_RUNNING;
   // init contexts
-  arena_init(&sim->arena);
+  bump_allocator_init(&sim->bump, 64 * 1024 * 1024);
   thread_pool_init(&sim->pool, WORLD_THREAD_COUNT);
   // init sim world
   world_init(&sim->world, cfg.num_particles);
@@ -58,7 +58,7 @@ void simulator_free(struct simulator *sim) {
   assert(sim);
   world_free(&sim->world);
   thread_pool_free(&sim->pool);
-  arena_free(&sim->arena);
+  bump_allocator_free(&sim->bump);
   TTF_CloseFont(sim->font);
   TTF_Quit();
   SDL_DestroyTexture(sim->framebuf);
@@ -68,8 +68,8 @@ void simulator_free(struct simulator *sim) {
 
 void simulator_tick(struct simulator *sim, float dt) {
   assert(sim);
-  world_step(&sim->world, &sim->arena, &sim->pool, dt);
-  arena_clear(&sim->arena);
+  world_step(&sim->world, &sim->bump, &sim->pool, dt);
+  bump_allocator_clear(&sim->bump);
 }
 
 static void

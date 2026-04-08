@@ -5,7 +5,7 @@
 #include <SDL2/SDL_ttf.h>
 #include <stdint.h>
 
-#include "arena.h"
+#include "bump_allocator.h"
 #include "thread_pool.h"
 #include "world.h"
 
@@ -21,7 +21,7 @@ struct simulator {
   enum simulator_state state;
 
   // per tick contexts/monads
-  struct arena arena;
+  struct bump_allocator bump;
   struct thread_pool pool;
 
   SDL_Window *window;

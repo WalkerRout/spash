@@ -10,6 +10,8 @@
 #include "particle.h"
 #include "spatial_hasher.h"
 
+#define THREAD_BUMP_RESERVE (16 * 1024 * 1024)
+
 static float random_float_0_to_1(void) {
   return (float)rand() / (float)RAND_MAX;
 }
@@ -40,14 +42,14 @@ void world_init(struct world *world, size_t num_particles) {
   }
 
   for (size_t i = 0; i < WORLD_THREAD_COUNT; ++i) {
-    arena_init(&world->thread_arenas[i]);
+    bump_allocator_init(&world->thread_bumps[i], THREAD_BUMP_RESERVE);
   }
 }
 
 void world_free(struct world *world) {
   assert(world);
   for (size_t i = 0; i < WORLD_THREAD_COUNT; ++i) {
-    arena_free(&world->thread_arenas[i]);
+    bump_allocator_free(&world->thread_bumps[i]);
   }
   free(world->particles);
   free(world->particles_swap);
@@ -118,8 +120,8 @@ struct particle_chunk_task {
   size_t end;
   // readonly
   struct spatial_hasher *sh;
-  // tls arena for intermediate allocations n shit
-  struct arena *arena;
+  // per-thread bump for intermediate allocations
+  struct bump_allocator *bump;
 };
 
 static void chunk_particle_update(void *arg) {
@@ -129,10 +131,10 @@ static void chunk_particle_update(void *arg) {
     struct particle p = task->buffer[i];
     size_t neighbours_len = 0;
     const void **neighbours =
-      spatial_hasher_query(task->sh, task->arena, &p, &neighbours_len);
+      spatial_hasher_query(task->sh, task->bump, &p, &neighbours_len);
     task->swap[i] = step_particle(p, neighbours, neighbours_len, task->dt);
   }
-  arena_clear(task->arena);
+  bump_allocator_clear(task->bump);
 }
 
 static v2f_t particle_position(const void *item) {
@@ -149,19 +151,19 @@ static void swap_buffers(struct world *world) {
 
 void world_step(
   struct world *world,
-  struct arena *arena,
+  struct bump_allocator *bump,
   struct thread_pool *pool,
   float dt
 ) {
   assert(world);
-  assert(arena);
+  assert(bump);
   assert(pool);
 
-  // use arena context to create a transient hasher
+  // use bump context to create a transient hasher
   struct spatial_hasher sh;
   spatial_hasher_init(
     &sh,
-    arena,
+    bump,
     PARTICLE_RADIUS * 20.0f,
     (struct spashable) {
       .sizeof_item = sizeof(struct particle),
@@ -188,7 +190,7 @@ void world_step(
       .start = start,
       .end = end,
       .sh = &sh,
-      .arena = &world->thread_arenas[i],
+      .bump = &world->thread_bumps[i],
       .dt = dt,
     };
     thread_pool_add_work(pool, chunk_particle_update, &tasks[i]);

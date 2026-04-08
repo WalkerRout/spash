@@ -3,6 +3,8 @@
 #include <assert.h>
 #include <string.h>
 
+#define ALLOC_ALIGN (sizeof(void *))
+
 static uint64_t cell_hash(int32_t cx, int32_t cy) {
   return (uint64_t)cx * 73856093u ^ (uint64_t)cy * 19349663u;
 }
@@ -17,14 +19,14 @@ bucket_index(const struct spatial_hasher *sh, const void *item) {
 
 void spatial_hasher_init(
   struct spatial_hasher *sh,
-  struct arena *arena,
+  struct bump_allocator *bump,
   float cell_size,
   struct spashable intface,
   const void *items,
   size_t items_len
 ) {
   assert(sh);
-  assert(arena);
+  assert(bump);
   assert(items);
 
   sh->cell_size = cell_size;
@@ -36,13 +38,9 @@ void spatial_hasher_init(
     sh->num_buckets = 16;
   }
 
-  sh->buckets =
-    arena_alloc(arena, sh->num_buckets * sizeof(struct spatial_hasher_entry *));
-  memset(
-    sh->buckets,
-    0,
-    sh->num_buckets * sizeof(struct spatial_hasher_entry *)
-  );
+  size_t buckets_size = sh->num_buckets * sizeof(struct spatial_hasher_entry *);
+  sh->buckets = bump_allocator_alloc(bump, buckets_size, ALLOC_ALIGN);
+  memset(sh->buckets, 0, buckets_size);
 
   // insert all items
   const char *base = (const char *)items;
@@ -51,8 +49,11 @@ void spatial_hasher_init(
     const void *item = base + i * intface.sizeof_item;
     uint64_t idx = bucket_index(sh, item);
 
-    struct spatial_hasher_entry *entry =
-      arena_alloc(arena, sizeof(struct spatial_hasher_entry));
+    struct spatial_hasher_entry *entry = bump_allocator_alloc(
+      bump,
+      sizeof(struct spatial_hasher_entry),
+      ALLOC_ALIGN
+    );
     entry->item = item;
     entry->next = sh->buckets[idx];
     sh->buckets[idx] = entry;
@@ -61,12 +62,12 @@ void spatial_hasher_init(
 
 const void **spatial_hasher_query(
   const struct spatial_hasher *sh,
-  struct arena *arena,
+  struct bump_allocator *bump,
   const void *item,
   size_t *out_neighbours_len
 ) {
   assert(sh);
-  assert(arena);
+  assert(bump);
   assert(item);
   assert(out_neighbours_len);
 
@@ -77,7 +78,8 @@ const void **spatial_hasher_query(
   // collect from 3x3 neighborhood
   size_t count = 0;
   size_t capacity = 32;
-  const void **result = arena_alloc(arena, capacity * sizeof(const void *));
+  const void **result =
+    bump_allocator_alloc(bump, capacity * sizeof(const void *), ALLOC_ALIGN);
 
   for (int32_t dx = -1; dx <= 1; ++dx) {
     for (int32_t dy = -1; dy <= 1; ++dy) {
@@ -95,8 +97,11 @@ const void **spatial_hasher_query(
         if (ddx >= -1 && ddx <= 1 && ddy >= -1 && ddy <= 1) {
           if (count >= capacity) {
             size_t new_capacity = capacity * 2;
-            const void **new_result =
-              arena_alloc(arena, new_capacity * sizeof(const void *));
+            const void **new_result = bump_allocator_alloc(
+              bump,
+              new_capacity * sizeof(const void *),
+              ALLOC_ALIGN
+            );
             memcpy(new_result, result, count * sizeof(const void *));
             result = new_result;
             capacity = new_capacity;

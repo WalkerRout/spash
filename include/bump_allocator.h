@@ -1,13 +1,13 @@
 #ifndef _BUMP_ALLOCATOR_H
 #define _BUMP_ALLOCATOR_H
 
-#include <stddef.h>
+#include <stdint.h>
 
 struct bump_allocator {
-  char *base;
   size_t offset;
   size_t committed;
   size_t reserved;
+  uint8_t *base;
 };
 
 void bump_allocator_init(struct bump_allocator *bump, size_t reserve_bytes);
