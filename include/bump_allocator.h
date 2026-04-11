@@ -25,7 +25,8 @@ void *bump_allocator_alloc(
   size_t alignment
 );
 void bump_allocator_clear(struct bump_allocator *bump);
-struct bump_allocator_checkpoint bump_allocator_save(struct bump_allocator *bump);
+struct bump_allocator_checkpoint
+bump_allocator_save(struct bump_allocator *bump);
 void bump_allocator_restore(
   struct bump_allocator *bump,
   struct bump_allocator_checkpoint checkpoint

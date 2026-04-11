@@ -97,7 +97,8 @@ void bump_allocator_clear(struct bump_allocator *bump) {
   bump->generation += 1;
 }
 
-struct bump_allocator_checkpoint bump_allocator_save(struct bump_allocator *bump) {
+struct bump_allocator_checkpoint
+bump_allocator_save(struct bump_allocator *bump) {
   assert(bump);
   return (struct bump_allocator_checkpoint) {
     .offset = bump->offset,

@@ -84,7 +84,7 @@ static inline float pl_kernel(float r, float a, float beta) {
 // interaction radius in world units
 #define PL_CUTOFF (0.05f)
 // repulsion zone as fraction of cutoff
-#define PL_BETA (0.30f) 
+#define PL_BETA (0.30f)
 // global force strength
 #define PL_FORCE_SCALE (2.0f)
 // velocity damping rate (1/s)
@@ -257,7 +257,7 @@ void world_step(
   }
 
   thread_pool_wait(pool);
-  
+
   // clean bumps; threads dont know about possible existing allocations...
   for (size_t i = 0; i < WORLD_THREAD_COUNT; ++i) {
     bump_allocator_clear(&world->thread_bumps[i]);

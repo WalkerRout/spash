@@ -8,12 +8,12 @@
 #include "particle.h"
 
 static const SDL_Color SPECIES_COLORS[SPECIES_COUNT] = {
-  {255,  80,  80, 255}, // red
-  { 80, 200, 120, 255}, // green
-  { 80, 140, 255, 255}, // blue
-  {255, 200,  60, 255}, // yellow
-  {200,  80, 220, 255}, // magenta
-  { 60, 220, 220, 255}, // cyan
+  {255, 80, 80, 255}, // red
+  {80, 200, 120, 255}, // green
+  {80, 140, 255, 255}, // blue
+  {255, 200, 60, 255}, // yellow
+  {200, 80, 220, 255}, // magenta
+  {60, 220, 220, 255}, // cyan
 };
 
 void simulator_sdl_init(
@@ -65,7 +65,8 @@ void simulator_sdl_init(
 #ifdef _WIN32
   sim->font = TTF_OpenFont("C:/Windows/Fonts/consola.ttf", 16);
 #else
-  sim->font = TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf", 16);
+  sim->font =
+    TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf", 16);
 #endif
   assert(sim->font);
 
