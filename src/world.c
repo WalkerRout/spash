@@ -12,17 +12,25 @@
 
 #define THREAD_BUMP_RESERVE (16 * 1024 * 1024)
 
+#define PARTICLE_RADIUS (0.003f)
+
 static float random_float_0_to_1(void) {
   return (float)rand() / (float)RAND_MAX;
 }
 
-#define PARTICLE_RADIUS (0.0001f)
+static float random_float_neg1_to_1(void) {
+  return 2.0f * random_float_0_to_1() - 1.0f;
+}
 
 static struct particle random_particle(void) {
   struct particle p;
   p.radius = PARTICLE_RADIUS;
-  p.pos = v2f(random_float_0_to_1(), random_float_0_to_1());
-  p.vel = v2f(random_float_0_to_1(), random_float_0_to_1());
+  p.pos = v2f(
+    random_float_0_to_1() * WORLD_WIDTH,
+    random_float_0_to_1() * WORLD_HEIGHT
+  );
+  p.vel = v2f(0.0f, 0.0f);
+  p.species = (enum species)(rand() % (int)SPECIES_COUNT);
   return p;
 }
 
@@ -41,6 +49,13 @@ void world_init(struct world *world, size_t num_particles) {
     world->particles[i] = random_particle();
   }
 
+  // init force matrix
+  for (size_t i = 0; i < (size_t)SPECIES_COUNT; ++i) {
+    for (size_t j = 0; j < (size_t)SPECIES_COUNT; ++j) {
+      world->force_matrix[i][j] = random_float_neg1_to_1();
+    }
+  }
+
   for (size_t i = 0; i < WORLD_THREAD_COUNT; ++i) {
     bump_allocator_init(&world->thread_bumps[i], THREAD_BUMP_RESERVE);
   }
@@ -55,55 +70,89 @@ void world_free(struct world *world) {
   free(world->particles_swap);
 }
 
+// tom mohr's particle life kernel...
+static inline float pl_kernel(float r, float a, float beta) {
+  if (r < beta) {
+    return r / beta - 1.0f;
+  }
+  if (r < 1.0f) {
+    return a * (1.0f - fabsf(2.0f * r - 1.0f - beta) / (1.0f - beta));
+  }
+  return 0.0f;
+}
+
+// interaction radius in world units
+#define PL_CUTOFF (0.05f)
+// repulsion zone as fraction of cutoff
+#define PL_BETA (0.30f) 
+// global force strength
+#define PL_FORCE_SCALE (2.0f)
+// velocity damping rate (1/s)
+#define PL_FRICTION (8.0f)
+// spasher cell must be >=PL_CUTOFF; 3x3 query covers +-1 cell
+#define PL_CELL_SIZE (PL_CUTOFF)
+
 static struct particle step_particle(
-  struct particle p,
+  const struct particle *p,
   const void **neighbours,
   size_t neighbours_len,
+  const float force_matrix[SPECIES_COUNT][SPECIES_COUNT],
   float dt
 ) {
-  struct particle out = p;
+  struct particle out = *p;
 
-  // particle-particle collisions
+  float ax = 0.0f;
+  float ay = 0.0f;
+
   for (size_t i = 0; i < neighbours_len; ++i) {
     const struct particle *n = (const struct particle *)neighbours[i];
     // skip self
-    if (memcmp(n, &p, sizeof(struct particle)) == 0) {
+    if (n == p) {
       continue;
     }
-    // are we colliding with a different particle
-    if (particle_is_colliding(p, *n)) {
-      // reflect velocity along collision normal (no sqrt)
-      float dx = p.pos.x - n->pos.x;
-      float dy = p.pos.y - n->pos.y;
-      float dist_sq = dx * dx + dy * dy;
-      if (dist_sq > 0.0f) {
-        float dot = out.vel.x * dx + out.vel.y * dy;
-        if (dot < 0.0f) {
-          out.vel.x -= 2.0f * dot * dx / dist_sq;
-          out.vel.y -= 2.0f * dot * dy / dist_sq;
-        }
-      }
+    float dx = n->pos.x - p->pos.x;
+    float dy = n->pos.y - p->pos.y;
+    float dist_sq = dx * dx + dy * dy;
+    if (dist_sq <= 0.0f || dist_sq >= PL_CUTOFF * PL_CUTOFF) {
+      continue;
     }
+    float dist = sqrtf(dist_sq);
+    float r = dist / PL_CUTOFF;
+    float a = force_matrix[p->species][n->species];
+    float f = pl_kernel(r, a, PL_BETA);
+    // unit vector toward neighbour * force magnitude
+    float inv = 1.0f / dist;
+    ax += f * dx * inv;
+    ay += f * dy * inv;
   }
 
+  ax *= PL_FORCE_SCALE;
+  ay *= PL_FORCE_SCALE;
+
+  // semi implicit euler with exponential friction
+  float damp = expf(-PL_FRICTION * dt);
+  out.vel.x = (out.vel.x + ax * dt) * damp;
+  out.vel.y = (out.vel.y + ay * dt) * damp;
+
   // integrate position wrt deltatime
-  out.pos = v2f_add(out.pos, v2f(out.vel.x * dt, out.vel.y * dt));
+  out.pos.x += out.vel.x * dt;
+  out.pos.y += out.vel.y * dt;
 
   // wall bouncing
   if (out.pos.x < 0.0f) {
     out.pos.x = -out.pos.x;
     out.vel.x = -out.vel.x;
   }
-  if (out.pos.x > 1.0f) {
-    out.pos.x = 2.0f - out.pos.x;
+  if (out.pos.x > WORLD_WIDTH) {
+    out.pos.x = 2.0f * WORLD_WIDTH - out.pos.x;
     out.vel.x = -out.vel.x;
   }
   if (out.pos.y < 0.0f) {
     out.pos.y = -out.pos.y;
     out.vel.y = -out.vel.y;
   }
-  if (out.pos.y > 1.0f) {
-    out.pos.y = 2.0f - out.pos.y;
+  if (out.pos.y > WORLD_HEIGHT) {
+    out.pos.y = 2.0f * WORLD_HEIGHT - out.pos.y;
     out.vel.y = -out.vel.y;
   }
 
@@ -122,19 +171,26 @@ struct particle_chunk_task {
   struct spatial_hasher *sh;
   // per-thread bump for intermediate allocations
   struct bump_allocator *bump;
+  // readonly force matrix
+  const float (*force_matrix)[SPECIES_COUNT];
 };
 
 static void chunk_particle_update(void *arg) {
   assert(arg);
   struct particle_chunk_task *task = (struct particle_chunk_task *)arg;
   for (size_t i = task->start; i < task->end; ++i) {
-    struct particle p = task->buffer[i];
+    const struct particle *p = &task->buffer[i];
     size_t neighbours_len = 0;
     const void **neighbours =
-      spatial_hasher_query(task->sh, task->bump, &p, &neighbours_len);
-    task->swap[i] = step_particle(p, neighbours, neighbours_len, task->dt);
+      spatial_hasher_query(task->sh, task->bump, p, &neighbours_len);
+    task->swap[i] = step_particle(
+      p,
+      neighbours,
+      neighbours_len,
+      task->force_matrix,
+      task->dt
+    );
   }
-  bump_allocator_clear(task->bump);
 }
 
 static v2f_t particle_position(const void *item) {
@@ -164,7 +220,7 @@ void world_step(
   spatial_hasher_init(
     &sh,
     bump,
-    PARTICLE_RADIUS * 20.0f,
+    PL_CELL_SIZE,
     (struct spashable) {
       .sizeof_item = sizeof(struct particle),
       .position = particle_position,
@@ -192,11 +248,18 @@ void world_step(
       .sh = &sh,
       .bump = &world->thread_bumps[i],
       .dt = dt,
+      .force_matrix = world->force_matrix,
     };
     thread_pool_add_work(pool, chunk_particle_update, &tasks[i]);
     curr = end;
   }
 
   thread_pool_wait(pool);
+  
+  // clean bumps; threads dont know about possible existing allocations...
+  for (size_t i = 0; i < WORLD_THREAD_COUNT; ++i) {
+    bump_allocator_clear(&world->thread_bumps[i]);
+  }
+
   swap_buffers(world);
 }

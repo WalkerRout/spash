@@ -1,6 +1,7 @@
 #ifndef _BUMP_ALLOCATOR_H
 #define _BUMP_ALLOCATOR_H
 
+#include <stddef.h>
 #include <stdint.h>
 
 struct bump_allocator {
