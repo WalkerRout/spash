@@ -179,6 +179,7 @@ static void chunk_particle_update(void *arg) {
   assert(arg);
   struct particle_chunk_task *task = (struct particle_chunk_task *)arg;
   for (size_t i = task->start; i < task->end; ++i) {
+    struct bump_allocator_checkpoint cp = bump_allocator_save(task->bump);
     const struct particle *p = &task->buffer[i];
     size_t neighbours_len = 0;
     const void **neighbours =
@@ -190,6 +191,7 @@ static void chunk_particle_update(void *arg) {
       task->force_matrix,
       task->dt
     );
+    bump_allocator_restore(task->bump, cp);
   }
 }
 

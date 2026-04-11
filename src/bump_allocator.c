@@ -24,6 +24,7 @@ void bump_allocator_init(struct bump_allocator *bump, size_t reserve_bytes) {
   bump->reserved = align_up(reserve_bytes, PAGE_SIZE);
   bump->offset = 0;
   bump->committed = 0;
+  bump->generation = 0;
 
 #ifdef _WIN32
   bump->base = VirtualAlloc(NULL, bump->reserved, MEM_RESERVE, PAGE_READWRITE);
@@ -51,6 +52,7 @@ void bump_allocator_free(struct bump_allocator *bump) {
   bump->offset = 0;
   bump->committed = 0;
   bump->reserved = 0;
+  bump->generation = 0;
 }
 
 void *bump_allocator_alloc(
@@ -92,4 +94,23 @@ void *bump_allocator_alloc(
 void bump_allocator_clear(struct bump_allocator *bump) {
   assert(bump);
   bump->offset = 0;
+  bump->generation += 1;
+}
+
+struct bump_allocator_checkpoint bump_allocator_save(struct bump_allocator *bump) {
+  assert(bump);
+  return (struct bump_allocator_checkpoint) {
+    .offset = bump->offset,
+    .generation = bump->generation,
+  };
+}
+
+void bump_allocator_restore(
+  struct bump_allocator *bump,
+  struct bump_allocator_checkpoint checkpoint
+) {
+  assert(bump);
+  assert(checkpoint.generation == bump->generation);
+  assert(checkpoint.offset <= bump->offset);
+  bump->offset = checkpoint.offset;
 }

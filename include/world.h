@@ -7,7 +7,7 @@
 #include "particle.h"
 #include "thread_pool.h"
 
-#define WORLD_THREAD_COUNT (4)
+#define WORLD_THREAD_COUNT (20)
 
 // world dims in worldspace units...
 // - particles live in [0, WORLD_WIDTH] and [0, WORLD_HEIGHT]

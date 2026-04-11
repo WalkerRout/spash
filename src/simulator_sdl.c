@@ -72,7 +72,10 @@ void simulator_sdl_init(
   // camera derived from window size and configured pixel density
   sim->cam.view_size.x = (float)sim->win_w / cfg.pixels_per_world_unit;
   sim->cam.view_size.y = (float)sim->win_h / cfg.pixels_per_world_unit;
-  sim->cam.pos = v2f(0.0f, 0.0f);
+  sim->cam.pos = v2f(
+    (WORLD_WIDTH - sim->cam.view_size.x) / 2.0f,
+    (WORLD_HEIGHT - sim->cam.view_size.y) / 2.0f
+  );
   sim->pan_speed = 1.5f;
 }
 
@@ -103,6 +106,11 @@ void simulator_sdl_handle_input(struct simulator_sdl *sim, float dt) {
   }
   if (keys[SDL_SCANCODE_D]) {
     sim->cam.pos.x += step;
+  }
+  if (keys[SDL_SCANCODE_R]) {
+    size_t n = sim->world.particles_len;
+    world_free(&sim->world);
+    world_init(&sim->world, n);
   }
 
   // clamp so the view never leaves the world
