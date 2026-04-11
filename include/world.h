@@ -7,13 +7,21 @@
 #include "particle.h"
 #include "thread_pool.h"
 
-#define WORLD_THREAD_COUNT (20)
+#define WORLD_THREAD_COUNT (4)
+
+// world dims in worldspace units...
+// - particles live in [0, WORLD_WIDTH] and [0, WORLD_HEIGHT]
+#define WORLD_WIDTH (10.0f)
+#define WORLD_HEIGHT (10.0f)
 
 struct world {
   // swap buffers; see WalkerRout/boids...
   size_t particles_len;
   struct particle *particles; // readonly
   struct particle *particles_swap; // writeonly
+
+  // asymmetric attract/repel coefficients in [-1, 1]
+  float force_matrix[SPECIES_COUNT][SPECIES_COUNT];
 
   struct bump_allocator thread_bumps[WORLD_THREAD_COUNT];
 };

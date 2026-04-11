@@ -4,10 +4,10 @@
 #include <stdlib.h>
 #include <time.h>
 
-#define SDL_MAIN_HANDLED
+//#define SDL_MAIN_HANDLED
 #include <SDL2/SDL.h>
 
-#include "simulator.h"
+#include "simulator_sdl.h"
 
 struct delta_time {
   uint64_t curr;
@@ -51,13 +51,14 @@ int main(int argc, char *argv[]) {
   assert(TTF_Init() == 0);
   assert(SDL_Init(SDL_INIT_VIDEO) == 0);
 
-  struct simulator sim;
-  simulator_init(
+  struct simulator_sdl sim;
+  simulator_sdl_init(
     &sim,
-    (struct simulator_config) {
-      .window_width = 2000,
-      .window_height = 1000,
-      .num_particles = 100000,
+    (struct simulator_sdl_config) {
+      .window_width =  1200,
+      .window_height = 700,
+      .num_particles = 70000,
+      .pixels_per_world_unit = 500.0f,
     }
   );
 
@@ -65,19 +66,20 @@ int main(int argc, char *argv[]) {
   delta_time_init(&dt);
 
   SDL_Event event = {0};
-  while (sim.state == SIMULATOR_STATE_RUNNING) {
+  while (sim.state == SIMULATOR_SDL_STATE_RUNNING) {
     while (SDL_PollEvent(&event)) {
       if (event.type == SDL_QUIT) {
-        sim.state = SIMULATOR_STATE_STOPPED;
+        sim.state = SIMULATOR_SDL_STATE_STOPPED;
       }
     }
     double delta_ms = delta_time_fetch(&dt);
     float delta_s = (float)(delta_ms / 1000.0);
-    simulator_tick(&sim, delta_s);
-    simulator_draw(&sim, dt.fps);
+    simulator_sdl_handle_input(&sim, delta_s);
+    simulator_sdl_tick(&sim, delta_s);
+    simulator_sdl_draw(&sim, dt.fps);
   }
 
-  simulator_free(&sim);
+  simulator_sdl_free(&sim);
   SDL_Quit();
 
   return 0;
