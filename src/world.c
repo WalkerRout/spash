@@ -109,10 +109,6 @@ static struct particle step_particle(
 
   for (size_t i = 0; i < neighbours_len; ++i) {
     const struct particle *n = (const struct particle *)neighbours[i];
-    // skip self
-    if (n == p) {
-      continue;
-    }
     float dx = n->pos.x - p->pos.x;
     float dy = n->pos.y - p->pos.y;
     float dist_sq = dx * dx + dy * dy;
