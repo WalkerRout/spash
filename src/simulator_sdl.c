@@ -32,7 +32,9 @@ void simulator_sdl_init(
 
   // init all sdlslop
 
-  // assuming SDL_Init was called...
+  assert(TTF_Init() == 0);
+  assert(SDL_Init(SDL_INIT_VIDEO) == 0);
+
   sim->window = SDL_CreateWindow(
     "spatial hashing",
     SDL_WINDOWPOS_UNDEFINED,
@@ -61,7 +63,6 @@ void simulator_sdl_init(
   );
   assert(sim->framebuf);
 
-  // assuming TTF_Init was called...
 #ifdef _WIN32
   sim->font = TTF_OpenFont("C:/Windows/Fonts/consola.ttf", 16);
 #else
@@ -82,14 +83,17 @@ void simulator_sdl_init(
 
 void simulator_sdl_free(struct simulator_sdl *sim) {
   assert(sim);
+  // free homespun
   world_free(&sim->world);
   thread_pool_free(&sim->pool);
   bump_allocator_free(&sim->bump);
+  // free other crap
   TTF_CloseFont(sim->font);
   TTF_Quit();
   SDL_DestroyTexture(sim->framebuf);
   SDL_DestroyRenderer(sim->renderer);
   SDL_DestroyWindow(sim->window);
+  SDL_Quit();
 }
 
 void simulator_sdl_handle_input(struct simulator_sdl *sim, float dt) {

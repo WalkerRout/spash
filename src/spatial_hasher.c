@@ -90,7 +90,8 @@ const void **spatial_hasher_query(
         int32_t ncy = (int32_t)(npos.y / sh->cell_size);
         int32_t ddx = ncx - cx;
         int32_t ddy = ncy - cy;
-        if (entry->item != item && ddx >= -1 && ddx <= 1 && ddy >= -1 && ddy <= 1) {
+        if (entry->item != item && ddx >= -1 && ddx <= 1 && ddy >= -1
+            && ddy <= 1) {
           if (count >= capacity) {
             size_t new_capacity = capacity * 2;
             const void **new_result = bump_allocator_alloc(

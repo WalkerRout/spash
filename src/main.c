@@ -48,9 +48,6 @@ int main(int argc, char *argv[]) {
 
   srand((unsigned int)time(NULL));
 
-  assert(TTF_Init() == 0);
-  assert(SDL_Init(SDL_INIT_VIDEO) == 0);
-
   struct simulator_sdl sim;
   simulator_sdl_init(
     &sim,
@@ -80,7 +77,6 @@ int main(int argc, char *argv[]) {
   }
 
   simulator_sdl_free(&sim);
-  SDL_Quit();
 
   return 0;
 }
