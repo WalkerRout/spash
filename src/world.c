@@ -104,6 +104,9 @@ static struct particle step_particle(
   float ax = 0.0f;
   float ay = 0.0f;
 
+  // precompute constants
+  const float damp = expf(-PL_FRICTION * dt);
+
   for (size_t i = 0; i < neighbours_len; ++i) {
     const struct particle *n = (const struct particle *)neighbours[i];
     // skip self
@@ -130,7 +133,6 @@ static struct particle step_particle(
   ay *= PL_FORCE_SCALE;
 
   // semi implicit euler with exponential friction
-  float damp = expf(-PL_FRICTION * dt);
   out.vel.x = (out.vel.x + ax * dt) * damp;
   out.vel.y = (out.vel.y + ay * dt) * damp;
 
