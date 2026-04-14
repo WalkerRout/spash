@@ -7,6 +7,10 @@
 #include "bump_allocator.h"
 #include "mvla/mvla.h"
 
+static inline uint64_t cell_hash(int32_t cx, int32_t cy) {
+  return (uint64_t)cx * 73856093u ^ (uint64_t)cy * 19349663u;
+}
+
 struct spashable {
   size_t sizeof_item;
   v2f_t (*position)(const void *item);

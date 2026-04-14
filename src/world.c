@@ -207,6 +207,85 @@ static void swap_buffers(struct world *world) {
   world->particles_swap = temp;
 }
 
+#define RADIX_BITS (8)
+#define RADIX_SIZE (1 << RADIX_BITS)
+#define RADIX_MASK (RADIX_SIZE - 1)
+
+static uint32_t particle_cell_key(const struct particle *p, float cell_size) {
+  int32_t cx = (int32_t)(p->pos.x / cell_size);
+  int32_t cy = (int32_t)(p->pos.y / cell_size);
+  return (uint32_t)cell_hash(cx, cy);
+}
+
+static void radix_sort_particles(
+  struct particle *particles,
+  size_t particles_len,
+  struct bump_allocator *bump,
+  float cell_size
+) {
+  uint32_t *keys = bump_allocator_alloc(
+    bump,
+    particles_len * sizeof(uint32_t),
+    sizeof(uint32_t)
+  );
+  uint32_t *keys_tmp = bump_allocator_alloc(
+    bump,
+    particles_len * sizeof(uint32_t),
+    sizeof(uint32_t)
+  );
+  struct particle *parts_tmp = bump_allocator_alloc(
+    bump,
+    particles_len * sizeof(struct particle),
+    sizeof(void *)
+  );
+
+  for (size_t i = 0; i < particles_len; ++i) {
+    keys[i] = particle_cell_key(&particles[i], cell_size);
+  }
+
+  struct particle *src = particles;
+  struct particle *dst = parts_tmp;
+  uint32_t *ksrc = keys;
+  uint32_t *kdst = keys_tmp;
+
+  // https://en.wikipedia.org/wiki/Radix_sort#Least_significant_digit
+  for (int pass = 0; pass < 4; ++pass) {
+    int shift = pass * RADIX_BITS;
+
+    size_t counts[RADIX_SIZE] = {0};
+    for (size_t i = 0; i < particles_len; ++i) {
+      counts[(ksrc[i] >> shift) & RADIX_MASK] += 1;
+    }
+
+    size_t offsets[RADIX_SIZE];
+    offsets[0] = 0;
+    for (size_t i = 1; i < RADIX_SIZE; ++i) {
+      offsets[i] = offsets[i - 1] + counts[i - 1];
+    }
+
+    for (size_t i = 0; i < particles_len; ++i) {
+      size_t bucket = (ksrc[i] >> shift) & RADIX_MASK;
+      size_t j = offsets[bucket]++;
+      dst[j] = src[i];
+      kdst[j] = ksrc[i];
+    }
+
+    // swap src/dst for next pass
+    struct particle *ptmp = src;
+    src = dst;
+    dst = ptmp;
+
+    uint32_t *ktmp = ksrc;
+    ksrc = kdst;
+    kdst = ktmp;
+  }
+
+  // after 4 (even) passes, src == particles, result is in place... if it ended in temp buffer, copy back
+  if (src != particles) {
+    memcpy(particles, src, particles_len * sizeof(struct particle));
+  }
+}
+
 void world_step(
   struct world *world,
   struct bump_allocator *bump,
@@ -216,6 +295,14 @@ void world_step(
   assert(world);
   assert(bump);
   assert(pool);
+
+  // sort particles by cell so spasher chases fewer pages
+  radix_sort_particles(
+    world->particles,
+    world->particles_len,
+    bump,
+    PL_CELL_SIZE
+  );
 
   // use bump context to create a transient hasher
   struct spatial_hasher sh;

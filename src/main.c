@@ -57,7 +57,7 @@ int main(int argc, char *argv[]) {
     (struct simulator_sdl_config) {
       .window_width = 1200,
       .window_height = 700,
-      .num_particles = 70000,
+      .num_particles = 300000,
       .pixels_per_world_unit = 500.0f,
     }
   );

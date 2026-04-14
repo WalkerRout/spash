@@ -5,10 +5,6 @@
 
 #define ALLOC_ALIGN (sizeof(void *))
 
-static uint64_t cell_hash(int32_t cx, int32_t cy) {
-  return (uint64_t)cx * 73856093u ^ (uint64_t)cy * 19349663u;
-}
-
 static uint64_t
 bucket_index(const struct spatial_hasher *sh, const void *item) {
   v2f_t pos = sh->intface.position(item);
