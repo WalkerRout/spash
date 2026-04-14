@@ -233,7 +233,17 @@ static void radix_sort_particles(
     particles_len * sizeof(uint32_t),
     sizeof(uint32_t)
   );
-  struct particle *parts_tmp = bump_allocator_alloc(
+  uint32_t *indices = bump_allocator_alloc(
+    bump,
+    particles_len * sizeof(uint32_t),
+    sizeof(uint32_t)
+  );
+  uint32_t *indices_tmp = bump_allocator_alloc(
+    bump,
+    particles_len * sizeof(uint32_t),
+    sizeof(uint32_t)
+  );
+  struct particle *gathered = bump_allocator_alloc(
     bump,
     particles_len * sizeof(struct particle),
     sizeof(void *)
@@ -241,49 +251,54 @@ static void radix_sort_particles(
 
   for (size_t i = 0; i < particles_len; ++i) {
     keys[i] = particle_cell_key(&particles[i], cell_size);
+    indices[i] = (uint32_t)i;
   }
 
-  struct particle *src = particles;
-  struct particle *dst = parts_tmp;
-  uint32_t *ksrc = keys;
-  uint32_t *kdst = keys_tmp;
+  // fuse histograms, build all 4 in one pass over keys
+  // - https://en.wikipedia.org/wiki/Radix_sort#Least_significant_digit
+  size_t counts[4][RADIX_SIZE] = {{0}};
+  for (size_t i = 0; i < particles_len; ++i) {
+    uint32_t k = keys[i];
+    counts[0][(k >> 0) & RADIX_MASK]++;
+    counts[1][(k >> 8) & RADIX_MASK]++;
+    counts[2][(k >> 16) & RADIX_MASK]++;
+    counts[3][(k >> 24) & RADIX_MASK]++;
+  }
 
-  // https://en.wikipedia.org/wiki/Radix_sort#Least_significant_digit
+  uint32_t *ksrc = keys, *kdst = keys_tmp;
+  uint32_t *isrc = indices, *idst = indices_tmp;
+
   for (int pass = 0; pass < 4; ++pass) {
     int shift = pass * RADIX_BITS;
 
-    size_t counts[RADIX_SIZE] = {0};
-    for (size_t i = 0; i < particles_len; ++i) {
-      counts[(ksrc[i] >> shift) & RADIX_MASK] += 1;
-    }
-
+    // prefix sum from precomputed histogram
     size_t offsets[RADIX_SIZE];
     offsets[0] = 0;
     for (size_t i = 1; i < RADIX_SIZE; ++i) {
-      offsets[i] = offsets[i - 1] + counts[i - 1];
+      offsets[i] = offsets[i - 1] + counts[pass][i - 1];
     }
 
+    // scatter key index pairs
     for (size_t i = 0; i < particles_len; ++i) {
       size_t bucket = (ksrc[i] >> shift) & RADIX_MASK;
       size_t j = offsets[bucket]++;
-      dst[j] = src[i];
       kdst[j] = ksrc[i];
+      idst[j] = isrc[i];
     }
-
-    // swap src/dst for next pass
-    struct particle *ptmp = src;
-    src = dst;
-    dst = ptmp;
 
     uint32_t *ktmp = ksrc;
     ksrc = kdst;
     kdst = ktmp;
+    uint32_t *itmp = isrc;
+    isrc = idst;
+    idst = itmp;
   }
 
-  // after 4 (even) passes, src == particles, result is in place... if it ended in temp buffer, copy back
-  if (src != particles) {
-    memcpy(particles, src, particles_len * sizeof(struct particle));
+  // reordering particles using sorted indices...
+  for (size_t i = 0; i < particles_len; ++i) {
+    gathered[i] = particles[isrc[i]];
   }
+  memcpy(particles, gathered, particles_len * sizeof(struct particle));
 }
 
 void world_step(
