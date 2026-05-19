@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "particle.h"
 
@@ -63,12 +64,14 @@ void simulator_sdl_init(
   );
   assert(sim->framebuf);
 
-#ifdef _WIN32
-  sim->font = TTF_OpenFont("C:/Windows/Fonts/consola.ttf", 16);
-#else
-  sim->font =
-    TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf", 16);
-#endif
+  // bundled in repo at assets/DejaVuSansMono.ttf
+  // - can override with SPASH_FONT if need be...
+  const char *font_path = "assets/DejaVuSansMono.ttf";
+  const char *env_font = getenv("SPASH_FONT");
+  if (env_font) {
+    font_path = env_font;
+  }
+  sim->font = TTF_OpenFont(font_path, 16);
   assert(sim->font);
 
   // camera derived from window size and configured pixel density

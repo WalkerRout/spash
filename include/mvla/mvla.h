@@ -44,11 +44,11 @@ extern "C" {
 */
 
 #ifndef MVLADEF
-#define MVLADEF extern
+#define MVLADEF
 #endif // MVLADEF
 
 #ifndef MVLAIMPL
-#define MVLAIMPL inline
+#define MVLAIMPL
 #endif // MVLADEF
 
 // -----------------------------------------

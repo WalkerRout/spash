@@ -11,8 +11,8 @@
 
 // world dims in worldspace units...
 // - particles live in [0, WORLD_WIDTH] and [0, WORLD_HEIGHT]
-#define WORLD_WIDTH (20.0f)
-#define WORLD_HEIGHT (20.0f)
+#define WORLD_WIDTH (5.0f)
+#define WORLD_HEIGHT (5.0f)
 
 struct world {
   // swap buffers; see WalkerRout/boids...
